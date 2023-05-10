@@ -75,8 +75,8 @@ void Fusion::publish()
     transformStamped.header.stamp = ros::Time::now();
     transformStamped.header.frame_id = "map";
     transformStamped.child_frame_id = "velodyne";
-    transformStamped.transform.translation.x = utm_pose_(0,0);
-    transformStamped.transform.translation.y = utm_pose_(1,0);
+    transformStamped.transform.translation.x = utm_rotated_pose_(0,0);
+    transformStamped.transform.translation.y = utm_rotated_pose_(1,0);
     transformStamped.transform.translation.z = 0.0;
     transformStamped.transform.rotation.x = imu_msg_.orientation.x;
     transformStamped.transform.rotation.y = imu_msg_.orientation.y;
@@ -201,8 +201,8 @@ void Fusion::run()
     updateGPS();
     updateLIDAR();
     convertNMEA2UTM();
-    tranformUTM(30); // input: angle [deg]
-    transformIMU(-35); // input: angle [deg]
+    tranformUTM(125); // input: angle [deg]
+    transformIMU(85); // input: angle [deg]
     publish();
     reset();
 
