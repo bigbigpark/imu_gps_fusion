@@ -11,6 +11,8 @@ find_package(catkin REQUIRED COMPONENTS
   sensor_msgs
   std_msgs
   visualization_msgs
+  tf2
+  tf2_ros
 )
 
 find_package(Eigen3 REQUIRED)
@@ -19,7 +21,7 @@ find_package (GeographicLib REQUIRED)
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES pose_fusion
-#  CATKIN_DEPENDS geometry_msgs nav_msgs roscpp sensor_msgs std_msgs visualization_msgs
+  CATKIN_DEPENDS geometry_msgs nav_msgs roscpp sensor_msgs std_msgs visualization_msgs tf2 tf2_ros
 #  DEPENDS system_lib
 )
 
