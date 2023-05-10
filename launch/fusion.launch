@@ -1,0 +1,15 @@
+<launch>
+  <arg name="ns1"       default="rbt1"/>
+  <arg name="rviz"      default="true"/>
+
+  <!-- Fusion Node -->
+  <node name="$(arg ns1)_main" pkg="pose_fusion" type="main" respawn="true" output="screen">
+    <param name="ns" value="$(arg ns1)"/>
+  </node>
+
+  <!-- Visualization -->
+  <group if="$(arg rviz)">
+    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find pose_fusion)/rviz/fusion.rviz" >
+    </node>
+  </group>
+</launch>
