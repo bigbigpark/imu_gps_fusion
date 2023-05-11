@@ -48,6 +48,7 @@ private:
   ros::Subscriber imu_sub_;
   ros::Subscriber gps_sub_;
   ros::Subscriber lidar_sub_;
+  ros::Subscriber lio_sub_;
 
   ros::Publisher pose_pub_;
   ros::Publisher utm_path_pub_;
@@ -58,22 +59,26 @@ private:
   sensor_msgs::Imu imu_msg_;
   sensor_msgs::NavSatFix gps_msg_;
   sensor_msgs::PointCloud2 lidar_msg_;
+  nav_msgs::Odometry lio_msg_;
 
   // Queue
   std::queue<sensor_msgs::Imu> imu_queue_;
   std::queue<sensor_msgs::NavSatFix> gps_queue_;
   std::queue<sensor_msgs::PointCloud2> lidar_queue_;
+  std::queue<nav_msgs::Odometry> lio_queue_;
 
   // Bool
   bool is_imu_ready_;
   bool is_gps_ready_;
   bool is_gps_first_received_;
   bool is_lidar_received_;
+  bool is_lio_received_;
 
   // Callback
   void imuCallback(const sensor_msgs::Imu::Ptr& msg);
   void gpsCallback(const sensor_msgs::NavSatFix::Ptr& msg);
   void lidarCallback(const sensor_msgs::PointCloud2::Ptr& msg);
+  void lioCallback(const nav_msgs::Odometry::Ptr& msg);
 
   // Variable
   std::mutex buf_;
@@ -85,11 +90,11 @@ private:
   nav_msgs::Path utm_path_;
   nav_msgs::Path utm_rotated_path_;
   
-
   // Func
   void updateIMU();
   void updateGPS();
   void updateLIDAR();
+  void updateLIO();
   void convertNMEA2UTM();
   void tranformUTM(double angle);
   void transformIMU(double angle);

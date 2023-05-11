@@ -7,6 +7,12 @@
     <param name="ns" value="$(arg ns1)"/>
   </node>
 
+  <!-- Lidar-inertial odometry -->
+  <group ns="rbt1">
+    <include file="$(find fast_lio)/launch/mapping_velodyne.launch">
+    </include>
+  </group>
+
   <!-- Visualization -->
   <group if="$(arg rviz)">
     <node name="rviz" pkg="rviz" type="rviz" args="-d $(find pose_fusion)/rviz/fusion.rviz" >

@@ -1,6 +1,13 @@
 
 #include "pose_fusion.hpp"
 
+void Fusion::lioCallback(const nav_msgs::Odometry::Ptr& msg)
+{
+  buf_.lock();
+  lio_queue_.push(*msg);
+  buf_.unlock();
+}
+
 void Fusion::lidarCallback(const sensor_msgs::PointCloud2::Ptr& msg)
 {
   buf_.lock();
@@ -29,6 +36,7 @@ void Fusion::reset()
   is_gps_ready_ = false;
   is_imu_ready_ = false;
   is_lidar_received_ = false;
+  is_lio_received_ = false;
 }
 
 void Fusion::publish()
@@ -152,6 +160,18 @@ void Fusion::convertNMEA2UTM()
   } 
 }
 
+void Fusion::updateLIO()
+{
+  if (!lio_queue_.empty())
+  {
+    buf_.lock();
+    lio_msg_ = lio_queue_.front();
+    lio_queue_.pop();
+    is_lio_received_ = true;
+    buf_.unlock();
+  }
+}
+
 void Fusion::updateLIDAR()
 {
   if (!lidar_queue_.empty())
@@ -208,7 +228,6 @@ void Fusion::run()
 
     r.sleep();
   }
-
 }
 
 void Fusion::init()
@@ -217,6 +236,7 @@ void Fusion::init()
   imu_sub_  = nh_.subscribe("/rbt1/gx5/imu/data", 1, &Fusion::imuCallback, this);
   gps_sub_  = nh_.subscribe("/rbt1/ublox_gps/fix", 1, &Fusion::gpsCallback, this);
   lidar_sub_  = nh_.subscribe("/rbt1/velodyne_points", 1, &Fusion::lidarCallback, this);
+  lio_sub_ = nh_.subscribe("/rbt1/Odometry", 1, &Fusion::lioCallback, this);
 
   pose_pub_ = nh_.advertise<nav_msgs::Odometry>("/rbt1/pose", 1);
   utm_path_pub_ = nh_.advertise<nav_msgs::Path>("/rbt1/utm_path", 1);
@@ -231,4 +251,5 @@ void Fusion::init()
   is_gps_ready_ = false;
   is_gps_first_received_ = true;
   is_lidar_received_ = false;
+  is_lio_received_ = false;
 }
