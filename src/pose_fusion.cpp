@@ -89,9 +89,19 @@ void Fusion::publish()
     lidar_msg_.header.stamp = ros::Time::now();
     lidar_pub_.publish(lidar_msg_);
 
+    // Publish UGV's pose
+    pose_msg_.header.frame_id = "map";
+    pose_msg_.header.stamp = ros::Time::now();
+    pose_msg_.pose.pose.position.x = utm_rotated_pose_(0,0);
+    pose_msg_.pose.pose.position.y = utm_rotated_pose_(1,0);
+    pose_msg_.pose.pose.orientation.x = lio_msg_.pose.pose.orientation.x;
+    pose_msg_.pose.pose.orientation.y = lio_msg_.pose.pose.orientation.y;
+    pose_msg_.pose.pose.orientation.z = lio_msg_.pose.pose.orientation.z;
+    pose_msg_.pose.pose.orientation.w = lio_msg_.pose.pose.orientation.w;
+    pose_pub_.publish(pose_msg_);
+
     // TF broadcaster
     static tf2_ros::TransformBroadcaster br;
-
     geometry_msgs::TransformStamped transformStamped;
     transformStamped.header.stamp = ros::Time::now();
     transformStamped.header.frame_id = "map";

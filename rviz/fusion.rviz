@@ -5,9 +5,9 @@ Panels:
     Property Tree Widget:
       Expanded:
         - /Global Options1
-        - /lidar1
+        - /UTM Rotated path(Orange)1
       Splitter Ratio: 0.6735293865203857
-    Tree Height: 363
+    Tree Height: 592
   - Class: rviz/Selection
     Name: Selection
   - Class: rviz/Tool Properties
@@ -85,7 +85,7 @@ Visualization Manager:
     - Alpha: 1
       Buffer Length: 1
       Class: rviz/Path
-      Color: 245; 121; 0
+      Color: 247; 153; 255
       Enabled: true
       Head Diameter: 0.30000001192092896
       Head Length: 0.20000000298023224

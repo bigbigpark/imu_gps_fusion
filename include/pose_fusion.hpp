@@ -60,6 +60,7 @@ private:
   sensor_msgs::NavSatFix gps_msg_;
   sensor_msgs::PointCloud2 lidar_msg_;
   nav_msgs::Odometry lio_msg_;
+  nav_msgs::Odometry pose_msg_;
 
   // Queue
   std::queue<sensor_msgs::Imu> imu_queue_;
