@@ -1,6 +1,19 @@
 
 #include "pose_fusion.hpp"
 
+double pi_to_pi(double angle)
+{
+  while(angle >= M_PI)
+    angle -= 2.*M_PI;
+
+  while(angle < -M_PI)
+    angle += 2.*M_PI;
+
+  return angle;
+}
+
+// ------------------------------------------------------------------
+
 void Fusion::lioCallback(const nav_msgs::Odometry::Ptr& msg)
 {
   buf_.lock();
@@ -41,7 +54,7 @@ void Fusion::reset()
 
 void Fusion::publish()
 {
-  if (is_gps_ready_ && is_imu_ready_ && is_lidar_received_)
+  if (is_gps_ready_ && is_lio_received_ && is_lidar_received_)
   {
     // Publish utm path
     utm_path_.header.frame_id = "map";
@@ -64,10 +77,10 @@ void Fusion::publish()
     auto pose2 = geometry_msgs::PoseStamped();
     pose2.pose.position.x = utm_rotated_pose_(0,0);
     pose2.pose.position.y = utm_rotated_pose_(1,0);
-    pose2.pose.orientation.x = imu_msg_.orientation.x;
-    pose2.pose.orientation.y = imu_msg_.orientation.y;
-    pose2.pose.orientation.z = imu_msg_.orientation.z;
-    pose2.pose.orientation.w = imu_msg_.orientation.w;
+    pose2.pose.orientation.x = lio_msg_.pose.pose.orientation.x;
+    pose2.pose.orientation.y = lio_msg_.pose.pose.orientation.y;
+    pose2.pose.orientation.z = lio_msg_.pose.pose.orientation.z;
+    pose2.pose.orientation.w = lio_msg_.pose.pose.orientation.w;
     utm_rotated_path_.poses.push_back(pose2);
     utm_rotated_path_pub_.publish(utm_rotated_path_);
 
@@ -86,12 +99,41 @@ void Fusion::publish()
     transformStamped.transform.translation.x = utm_rotated_pose_(0,0);
     transformStamped.transform.translation.y = utm_rotated_pose_(1,0);
     transformStamped.transform.translation.z = 0.0;
-    transformStamped.transform.rotation.x = imu_msg_.orientation.x;
-    transformStamped.transform.rotation.y = imu_msg_.orientation.y;
-    transformStamped.transform.rotation.z = imu_msg_.orientation.z;
-    transformStamped.transform.rotation.w = imu_msg_.orientation.w;
+    transformStamped.transform.rotation.x = lio_msg_.pose.pose.orientation.x;
+    transformStamped.transform.rotation.y = lio_msg_.pose.pose.orientation.y;
+    transformStamped.transform.rotation.z = lio_msg_.pose.pose.orientation.z;
+    transformStamped.transform.rotation.w = lio_msg_.pose.pose.orientation.w;
   
     br.sendTransform(transformStamped);
+  }
+}
+
+void Fusion::transformLIO()
+{
+  if (is_lio_received_)
+  {
+    tf2::Quaternion q(lio_msg_.pose.pose.orientation.x,
+                      lio_msg_.pose.pose.orientation.y,
+                      lio_msg_.pose.pose.orientation.z,
+                      lio_msg_.pose.pose.orientation.w);
+    tf2::Matrix3x3 m(q);
+    double roll, pitch, yaw;
+    m.getRPY(roll, pitch, yaw);
+
+    yaw *= -1;
+    yaw = pi_to_pi(yaw);
+
+    std::cout << "yaw [rad]: " << yaw << std::endl;
+    std::cout << "yaw [deg]: " << yaw*180.0/M_PI << std::endl;
+
+    tf2::Quaternion quat;
+    quat.setRPY(0.0, 0.0, yaw);
+    quat.normalize();
+
+    lio_msg_.pose.pose.orientation.w = quat.getW();
+    lio_msg_.pose.pose.orientation.x = quat.getX();
+    lio_msg_.pose.pose.orientation.y = quat.getY();
+    lio_msg_.pose.pose.orientation.z = quat.getZ();
   }
 }
 
@@ -138,6 +180,33 @@ void Fusion::tranformUTM(double angle)
                   0,           0, 1;
 
     utm_rotated_pose_ = T*utm_pose_;
+
+    // Calculate utm heading angle
+    double heading = std::atan2(utm_pose_(1,0)-prev_utm_pose_(1,0), utm_pose_(0,0)-prev_utm_pose_(0,0));
+    heading = pi_to_pi(heading);
+    std::cout << "utm heading [rad]: " << heading << std::endl;
+    std::cout << "utm heading [deg]: " << heading*180.0/M_PI << std::endl;
+
+    if (loop_cnt_ < 70)
+    {
+      loop_cnt_++;
+
+      Eigen::Vector2d p1 (utm_pose_(0,0), utm_pose_(1,0));
+      Eigen::Vector2d p2 (prev_utm_pose_(0,0), prev_utm_pose_(1,0));
+
+      auto norm = (p1-p2).norm();
+      std::cout << "norm: " << norm << std::endl;
+
+      if (norm > 0.15)  utm_heading_list.push_back(heading);
+    }
+    else
+    {
+      double avg = std::accumulate(utm_heading_list.begin(), utm_heading_list.end(), 0.0) / utm_heading_list.size();
+      std::cout << "avg utm heading [rad]: "<< GREEN << avg << END << std::endl;
+      std::cout << "avg utm heading [deg]: "<< GREEN << avg*180.0/M_PI << END << std::endl;
+    }
+
+    prev_utm_pose_ = utm_pose_;
   }
 }
 
@@ -220,9 +289,11 @@ void Fusion::run()
     updateIMU();
     updateGPS();
     updateLIDAR();
+    updateLIO();
     convertNMEA2UTM();
-    tranformUTM(125); // input: angle [deg]
-    transformIMU(85); // input: angle [deg]
+    tranformUTM(126); // input: angle [deg]
+    // transformIMU(85); // input: angle [deg]
+    transformLIO();
     publish();
     reset();
 
@@ -252,4 +323,9 @@ void Fusion::init()
   is_gps_first_received_ = true;
   is_lidar_received_ = false;
   is_lio_received_ = false;
+
+  utm_pose_ << 0.0, 0.0, 1.0;
+  prev_utm_pose_ << 0.0, 0.0, 1.0;
+
+  loop_cnt_ = 0;
 }

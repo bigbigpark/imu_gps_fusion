@@ -83,8 +83,11 @@ private:
   // Variable
   std::mutex buf_;
   Eigen::Vector3d utm_pose_;
+  Eigen::Vector3d prev_utm_pose_;
   Eigen::Vector3d utm_rotated_pose_;
   double ori_x_, ori_y_;
+  int loop_cnt_;
+  std::vector<double> utm_heading_list;
 
   // Publish the path
   nav_msgs::Path utm_path_;
@@ -98,6 +101,7 @@ private:
   void convertNMEA2UTM();
   void tranformUTM(double angle);
   void transformIMU(double angle);
+  void transformLIO();
   void publish();
 
   void reset();
