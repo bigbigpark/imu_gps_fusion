@@ -1,7 +1,7 @@
 # GPS + IMU fusion
 
 * `gps` : x, y position
-* 'imu' : heading angle
+* `imu` : heading angle
 
 <br/>
 
