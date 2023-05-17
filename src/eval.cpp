@@ -114,7 +114,7 @@ int main(int argc, char** argv)
   ref_path_sub  = nh.subscribe("/rbt1/ref_path", 1, refPathCallback);
   file.open("/home/scpark/data/2023-05-17/form_err.txt", std::ios::out);
 
-  ros::Rate r(5);
+  ros::Rate r(10);
   while(ros::ok())
   {
     ros::spinOnce();
