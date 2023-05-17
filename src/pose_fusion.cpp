@@ -190,7 +190,7 @@ void Fusion::transformIMU(double angle)
 
 void Fusion::tranformUTM(double angle)
 {
-  if (is_gps_ready_)
+  if (is_gps_ready_ && is_leader_utm_received_)
   {
     angle *= M_PI/180.0;
 
@@ -382,6 +382,7 @@ void Fusion::init()
   is_gps_first_received_ = true;
   is_lidar_received_ = false;
   is_lio_received_ = false;
+  is_leader_utm_received_ = false;
 
   utm_pose_ << 0.0, 0.0, 1.0;
   prev_utm_pose_ << 0.0, 0.0, 1.0;
