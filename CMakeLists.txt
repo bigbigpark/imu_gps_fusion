@@ -37,3 +37,9 @@ target_link_libraries(main
   ${GeographicLib_LIBRARIES}
   Eigen3::Eigen
 )
+
+add_executable(eval src/eval.cpp)
+target_link_libraries(eval
+  ${catkin_LIBRARIES}
+  Eigen3::Eigen
+)
