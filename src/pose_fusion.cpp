@@ -42,6 +42,13 @@ void Fusion::gpsCallback(const sensor_msgs::NavSatFix::Ptr& msg)
   buf_.unlock();
 }
 
+void Fusion::leaderUTMCallback(const geometry_msgs::Point::Ptr& msg)
+{
+  buf_.lock();
+  leader_utm_queue_.push(*msg);
+  buf_.unlock();
+}
+
 // ------------------------------------------------------------------
 
 void Fusion::reset()
@@ -54,7 +61,7 @@ void Fusion::reset()
 
 void Fusion::publish()
 {
-  if (is_gps_ready_ && is_lio_received_ && is_lidar_received_)
+  if (is_gps_ready_ && is_lio_received_ && is_lidar_received_ && is_leader_utm_received_)
   {
     // Publish utm path
     utm_path_.header.frame_id = "map";
@@ -99,6 +106,9 @@ void Fusion::publish()
     pose_msg_.pose.pose.orientation.z = lio_msg_.pose.pose.orientation.z;
     pose_msg_.pose.pose.orientation.w = lio_msg_.pose.pose.orientation.w;
     pose_pub_.publish(pose_msg_);
+
+    // Publish Leader UTM
+    if (robot_id_ == 1) leader_utm_pub_.publish(leader_utm_msg_);
 
     // TF broadcaster
     static tf2_ros::TransformBroadcaster br;
@@ -222,7 +232,7 @@ void Fusion::tranformUTM(double angle)
 
 void Fusion::convertNMEA2UTM()
 {
-  if (is_gps_ready_)
+  if (is_gps_ready_ && is_leader_utm_received_)
   {
     double e, n;
     gps_converter_.forward(gps_msg_.latitude, gps_msg_.longitude, e, n);
@@ -232,11 +242,35 @@ void Fusion::convertNMEA2UTM()
       is_gps_first_received_ = false;
       ori_x_ = e;
       ori_y_ = n;
-    }
 
+      if (robot_id_ == 1)
+      {
+        leader_utm_msg_.x = ori_x_;
+        leader_utm_msg_.y = ori_y_;
+      }
+      else
+      {
+        ori_x_ = leader_utm_msg_.x;
+        ori_y_ = leader_utm_msg_.y;
+      }
+    }
     utm_pose_ << e - ori_x_, n - ori_y_, 1;
+
     std::cout << std::setprecision(3) << "utm_pose: " << utm_pose_(0,0) << ", " << utm_pose_(1,0) << std::endl;
   } 
+}
+
+void Fusion::updateLeaderUTM()
+{
+  if (!leader_utm_queue_.empty() && robot_id_ != 1)
+  {
+    buf_.lock();
+    leader_utm_msg_ = leader_utm_queue_.front();
+    leader_utm_queue_.pop();
+    is_leader_utm_received_ = true;
+    buf_.unlock();
+  }
+  if (robot_id_ == 1) is_leader_utm_received_ = true;
 }
 
 void Fusion::updateLIO()
@@ -300,6 +334,7 @@ void Fusion::run()
     updateGPS();
     updateLIDAR();
     updateLIO();
+    updateLeaderUTM();
     convertNMEA2UTM();
     tranformUTM(126); // input: angle [deg]
     // transformIMU(85); // input: angle [deg]
@@ -313,16 +348,30 @@ void Fusion::run()
 
 void Fusion::init()
 {
-  // ROS
-  imu_sub_  = nh_.subscribe("/rbt1/gx5/imu/data", 1, &Fusion::imuCallback, this);
-  gps_sub_  = nh_.subscribe("/rbt1/ublox_gps/fix", 1, &Fusion::gpsCallback, this);
-  lidar_sub_  = nh_.subscribe("/rbt1/velodyne_points", 1, &Fusion::lidarCallback, this);
-  lio_sub_ = nh_.subscribe("/rbt1/Odometry", 1, &Fusion::lioCallback, this);
+  // Robot ID
+  robot_id_ = 1;
+  std::string ns = "/rbt" + std::to_string(robot_id_);
 
-  pose_pub_ = nh_.advertise<nav_msgs::Odometry>("/rbt1/pose", 1);
-  utm_path_pub_ = nh_.advertise<nav_msgs::Path>("/rbt1/utm_path", 1);
-  utm_rotated_path_pub_ = nh_.advertise<nav_msgs::Path>("/rbt1/utm_rotated_path", 1);
-  lidar_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("/rbt1/lidar", 1);
+  // ROS
+  imu_sub_  = nh_.subscribe(ns + "/gx5/imu/data", 1, &Fusion::imuCallback, this);
+  gps_sub_  = nh_.subscribe(ns + "/ublox_gps/fix", 1, &Fusion::gpsCallback, this);
+  lidar_sub_  = nh_.subscribe(ns + "/velodyne_points", 1, &Fusion::lidarCallback, this);
+  lio_sub_ = nh_.subscribe(ns + "/Odometry", 1, &Fusion::lioCallback, this);
+  
+  // Leader UTM origin pub
+  if (robot_id_ == 1)
+  {
+    leader_utm_pub_ = nh_.advertise<geometry_msgs::Point>("/rbt1/utm_origin", 1);
+  }
+  else
+  {
+    leader_utm_sub_ = nh_.subscribe("/rbt1/utm_origin", 1, &Fusion::leaderUTMCallback, this);
+  }
+
+  pose_pub_ = nh_.advertise<nav_msgs::Odometry>(ns + "/pose", 1);
+  utm_path_pub_ = nh_.advertise<nav_msgs::Path>(ns + "/utm_path", 1);
+  utm_rotated_path_pub_ = nh_.advertise<nav_msgs::Path>(ns + "/utm_rotated_path", 1);
+  lidar_pub_ = nh_.advertise<sensor_msgs::PointCloud2>(ns + "/lidar", 1);
 
   // Variable
   ori_x_ = 0.0;
